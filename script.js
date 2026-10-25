@@ -1,1272 +1,533 @@
+"use strict";
+
 // ==================================================
-// ================= PART 1 START ====================
+// API CONFIGURATION
+// ==================================================
+
+const API_BASE = "https://reliance-finance.onrender.com";
+
+function apiUrl(path) {
+    return ${API_BASE}${path};
+}
+
+async function apiFetch(path, options = {}) {
+    const response = await fetch(apiUrl(path), options);
+
+    let result;
+
+    try {
+        result = await response.json();
+    } catch {
+        throw new Error("Server se valid response nahi mila.");
+    }
+
+    if (!response.ok) {
+        throw new Error(
+            result.message || Server error: ${response.status}
+        );
+    }
+
+    return result;
+}
+
+// ==================================================
+// COMMON HELPERS
+// ==================================================
+
+function getValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value.trim() : "";
+}
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, function (char) {
+        const map = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return map[char];
+    });
+}
+
+function showMessage(element, message, className = "") {
+    if (!element) return;
+
+    element.replaceChildren();
+
+    const p = document.createElement("p");
+    p.className = className;
+    p.textContent = message;
+
+    element.appendChild(p);
+}
+
+function displayDate(value) {
+    if (!value) return "Not available";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Not available";
+    }
+
+    return date.toLocaleString("en-IN");
+}
+
+function addDetail(container, label, value) {
+    if (value === undefined || value === null || value === "") {
+        return;
+    }
+
+    const p = document.createElement("p");
+    const strong = document.createElement("b");
+
+    strong.textContent = `${label}: `;
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(String(value)));
+
+    container.appendChild(p);
+}
+
+// ==================================================
+// PART 1: APPLY NOW AND APPLICATION FORM
 // ==================================================
 
 document.addEventListener("DOMContentLoaded", function () {
-
-    // ==============================
-    // APPLY NOW
-    // ==============================
-
-    const applyBtn =
-        document.getElementById("applyBtn");
-
-    const loanModal =
-        document.getElementById("loanModal");
-
-    const closeBtn =
-        document.getElementById("closeBtn");
-
+    const applyBtn = document.getElementById("applyBtn");
+    const loanModal = document.getElementById("loanModal");
+    const closeBtn = document.getElementById("closeBtn");
 
     if (applyBtn && loanModal) {
-
-        applyBtn.addEventListener(
-            "click",
-            function () {
-
-                loanModal.style.display = "flex";
-
-            }
-        );
-
+        applyBtn.addEventListener("click", function () {
+            loanModal.style.display = "flex";
+        });
     }
-
 
     if (closeBtn && loanModal) {
-
-        closeBtn.addEventListener(
-            "click",
-            function () {
-
-                loanModal.style.display = "none";
-
-            }
-        );
-
+        closeBtn.addEventListener("click", function () {
+            loanModal.style.display = "none";
+        });
     }
 
-
-    // ==============================
+    // ----------------------------------------------
     // FORM STEPS
-    // ==============================
+    // ----------------------------------------------
 
-    const formStep1 =
-        document.getElementById("formStep1");
+    const formStep1 = document.getElementById("formStep1");
+    const formStep2 = document.getElementById("formStep2");
+    const formStep3 = document.getElementById("formStep3");
+    const formStep4 = document.getElementById("formStep4");
 
-    const formStep2 =
-        document.getElementById("formStep2");
+    const loanForm = document.getElementById("loanForm");
+    const loanForm2 = document.getElementById("loanForm2");
+    const loanForm3 = document.getElementById("loanForm3");
 
-    const formStep3 =
-        document.getElementById("formStep3");
+    const step1 = document.getElementById("step1");
+    const step2 = document.getElementById("step2");
+    const step3 = document.getElementById("step3");
+    const step4 = document.getElementById("step4");
 
-    const formStep4 =
-        document.getElementById("formStep4");
+    const reviewDetails = document.getElementById("reviewDetails");
+    const submitApplication = document.getElementById("submitApplication");
 
+    function activateStep(currentForm, nextForm, currentStep, nextStep) {
+        if (currentForm) currentForm.style.display = "none";
+        if (nextForm) nextForm.style.display = "block";
 
-    const loanForm =
-        document.getElementById("loanForm");
+        if (currentStep) currentStep.classList.remove("active-step");
+        if (nextStep) nextStep.classList.add("active-step");
+    }
 
-    const loanForm2 =
-        document.getElementById("loanForm2");
-
-    const loanForm3 =
-        document.getElementById("loanForm3");
-
-
-    const step1 =
-        document.getElementById("step1");
-
-    const step2 =
-        document.getElementById("step2");
-
-    const step3 =
-        document.getElementById("step3");
-
-    const step4 =
-        document.getElementById("step4");
-
-
-    const reviewDetails =
-        document.getElementById("reviewDetails");
-
-    const submitApplication =
-        document.getElementById("submitApplication");
-
-
-    // ==============================
+    // ----------------------------------------------
     // CUSTOMER PHOTO
-    // ==============================
+    // ----------------------------------------------
 
     let customerPhotoData = "";
-
-    const customerPhotoInput =
-        document.getElementById("customerPhoto");
-
+    const customerPhotoInput = document.getElementById("customerPhoto");
 
     if (customerPhotoInput) {
+        customerPhotoInput.addEventListener("change", function () {
+            const file = customerPhotoInput.files?.[0];
 
-        customerPhotoInput.addEventListener(
-            "change",
-            function () {
+            customerPhotoData = "";
 
-                const file =
-                    customerPhotoInput.files[0];
+            if (!file) return;
 
-
-                if (!file) {
-
-                    customerPhotoData = "";
-
-                    return;
-
-                }
-
-
-                if (!file.type.startsWith("image/")) {
-
-                    alert(
-                        "Please select an image file."
-                    );
-
-                    customerPhotoInput.value = "";
-
-                    customerPhotoData = "";
-
-                    return;
-
-                }
-
-
-                const reader =
-                    new FileReader();
-
-
-                reader.onload =
-                    function (event) {
-
-                        customerPhotoData =
-                            event.target.result;
-
-                    };
-
-
-                reader.onerror =
-                    function () {
-
-                        alert(
-                            "Photo read nahi ho payi."
-                        );
-
-                        customerPhotoData = "";
-
-                    };
-
-
-                reader.readAsDataURL(file);
-
-            }
-        );
-
-    }
-
-
-    // ==============================
-    // STEP 1 → STEP 2
-    // ==============================
-
-    if (loanForm) {
-
-        loanForm.addEventListener(
-            "submit",
-            function (e) {
-
-                e.preventDefault();
-
-
-                formStep1.style.display =
-                    "none";
-
-                formStep2.style.display =
-                    "block";
-
-
-                step1.classList.remove(
-                    "active-step"
-                );
-
-                step2.classList.add(
-                    "active-step"
-                );
-
-            }
-        );
-
-    }
-
-
-    // ==============================
-    // STEP 2 → STEP 3
-    // ==============================
-
-    if (loanForm2) {
-
-        loanForm2.addEventListener(
-            "submit",
-            function (e) {
-
-                e.preventDefault();
-
-
-                formStep2.style.display =
-                    "none";
-
-                formStep3.style.display =
-                    "block";
-
-
-                step2.classList.remove(
-                    "active-step"
-                );
-
-                step3.classList.add(
-                    "active-step"
-                );
-
-            }
-        );
-
-    }
-
-
-    // ==============================
-    // STEP 3 → STEP 4
-    // ==============================
-
-    if (loanForm3) {
-
-        loanForm3.addEventListener(
-            "submit",
-            function (e) {
-
-                e.preventDefault();
-
-
-                if (!customerPhotoData) {
-
-                    alert(
-                        "Please customer photo select karein."
-                    );
-
-                    return;
-
-                }
-
-
-                const name =
-                    document.getElementById(
-                        "name"
-                    ).value;
-
-                const dob =
-                    document.getElementById(
-                        "dob"
-                    ).value;
-
-                const mobile =
-                    document.getElementById(
-                        "mobile"
-                    ).value;
-
-                const email =
-                    document.getElementById(
-                        "email"
-                    ).value;
-
-                const address =
-                    document.getElementById(
-                        "address"
-                    ).value;
-
-                const loanType =
-                    document.getElementById(
-                        "loanType"
-                    ).value;
-
-                const loanAmount =
-                    document.getElementById(
-                        "loanAmount"
-                    ).value;
-
-                const occupation =
-                    document.getElementById(
-                        "occupation"
-                    ).value;
-
-                const income =
-                    document.getElementById(
-                        "income"
-                    ).value;
-
-                const employment =
-                    document.getElementById(
-                        "employment"
-                    ).value;
-
-                const city =
-                    document.getElementById(
-                        "city"
-                    ).value;
-
-                const state =
-                    document.getElementById(
-                        "state"
-                    ).value;
-
-
-                // ==============================
-                // REVIEW
-                // ==============================
-
-                reviewDetails.innerHTML = `
-
-                    <div style="
-                        text-align:center;
-                        margin-bottom:20px;
-                    ">
-
-                        <img
-                            src="${customerPhotoData}"
-                            alt="Customer Photo"
-                            style="
-                                width:110px;
-                                height:110px;
-                                object-fit:cover;
-                                border-radius:50%;
-                                border:3px solid #1765c0;
-                            "
-                        >
-
-                        <p>
-                            <b>Customer Photo</b>
-                        </p>
-
-                    </div>
-
-
-                    <p>
-                        <b>Name:</b>
-                        ${name}
-                    </p>
-
-                    <p>
-                        <b>Date of Birth:</b>
-                        ${dob}
-                    </p>
-
-                    <p>
-                        <b>Mobile:</b>
-                        ${mobile}
-                    </p>
-
-                    <p>
-                        <b>Email:</b>
-                        ${email}
-                    </p>
-
-                    <p>
-                        <b>Address:</b>
-                        ${address}
-                    </p>
-
-                    <p>
-                        <b>Loan Type:</b>
-                        ${loanType}
-                    </p>
-
-                    <p>
-                        <b>Loan Amount:</b>
-                        ₹${loanAmount}
-                    </p>
-
-                    <p>
-                        <b>Occupation:</b>
-                        ${occupation}
-                    </p>
-
-                    <p>
-                        <b>Monthly Income:</b>
-                        ₹${income}
-                    </p>
-
-                    <p>
-                        <b>Employment:</b>
-                        ${employment}
-                    </p>
-
-                    <p>
-                        <b>City:</b>
-                        ${city}
-                    </p>
-
-                    <p>
-                        <b>State:</b>
-                        ${state}
-                    </p>
-
-                `;
-
-
-                formStep3.style.display =
-                    "none";
-
-                formStep4.style.display =
-                    "block";
-
-
-                step3.classList.remove(
-                    "active-step"
-                );
-
-                step4.classList.add(
-                    "active-step"
-                );
-
-            }
-        );
-
-    }
-
-
-    // ==============================
-    // SUBMIT APPLICATION
-    // ==============================
-
-    if (submitApplication) {
-
-        submitApplication.addEventListener(
-            "click",
-            async function () {
-
-                const application = {
-
-                    name:
-                        document.getElementById(
-                            "name"
-                        ).value,
-
-                    dob:
-                        document.getElementById(
-                            "dob"
-                        ).value,
-
-                    mobile:
-                        document.getElementById(
-                            "mobile"
-                        ).value,
-
-                    email:
-                        document.getElementById(
-                            "email"
-                        ).value,
-
-                    address:
-                        document.getElementById(
-                            "address"
-                        ).value,
-
-                    loanType:
-                        document.getElementById(
-                            "loanType"
-                        ).value,
-
-                    loanAmount:
-                        document.getElementById(
-                            "loanAmount"
-                        ).value,
-
-                    occupation:
-                        document.getElementById(
-                            "occupation"
-                        ).value,
-
-                    income:
-                        document.getElementById(
-                            "income"
-                        ).value,
-
-                    employment:
-                        document.getElementById(
-                            "employment"
-                        ).value,
-
-                    city:
-                        document.getElementById(
-                            "city"
-                        ).value,
-
-                    state:
-                        document.getElementById(
-                            "state"
-                        ).value,
-
-                    customerPhoto:
-                        customerPhotoData || "",
-
-                    status:
-                        "Pending",
-
-                    submittedAt:
-                        new Date().toISOString()
-
-                };
-
-
-                try {
-
-                    submitApplication.disabled =
-                        true;
-
-                    submitApplication.innerText =
-                        "Submitting...";
-
-
-                    const response =
-                        await fetch(
-                            "https://reliance-finance.onrender.com/submit-application",
-                            {
-                                method: "POST",
-
-                                headers: {
-                                    "Content-Type":
-                                        "application/json"
-                                },
-
-                                body:
-                                    JSON.stringify(
-                                        application
-                                    )
-                            }
-                        );
-
-
-                    const result =
-                        await response.json();
-
-
-                    if (result.success) {
-
-                        alert(
-                            "Application Submitted Successfully!"
-                        );
-
-                        loanModal.style.display =
-                            "none";
-
-                        location.reload();
-
-
-                    } else {
-
-                        alert(
-                            result.message ||
-                            "Application save nahi hui."
-                        );
-
-                        submitApplication.disabled =
-                            false;
-
-                        submitApplication.innerText =
-                            "Submit Application";
-
-                    }
-
-                } catch (error) {
-
-                    console.log(error);
-
-                    alert(
-                        "Server se connection nahi ho raha hai."
-                    );
-
-                    submitApplication.disabled =
-                        false;
-
-                    submitApplication.innerText =
-                        "Submit Application";
-
-                }
-
-            }
-        );
-
-    }
-
-    // ==================================================
-    // ================= PART 1 END ======================
-    // ==================================================
-
-});
-// ==================================================
-// ================= PART 2 START ====================
-// ==================================================
-
-// ==============================
-// CHECK MY STATUS
-// ==============================
-
-const statusBtn =
-    document.getElementById("statusBtn");
-
-const statusModal =
-    document.getElementById("statusModal");
-
-const closeStatusBtn =
-    document.getElementById("closeStatusBtn");
-
-const checkStatusBtn =
-    document.getElementById("checkStatusBtn");
-
-const statusMobile =
-    document.getElementById("statusMobile");
-
-const statusResult =
-    document.getElementById("statusResult");
-
-// ==============================
-// OPEN STATUS
-// ==============================
-
-if (statusBtn && statusModal) {
-    statusBtn.addEventListener(
-        "click",
-        function () {
-
-            statusModal.style.display = "flex";
-
-            if (statusMobile) {
-                statusMobile.value = "";
-            }
-
-            if (statusResult) {
-                statusResult.innerHTML = "";
-            }
-
-        }
-    );
-}
-
-// ==============================
-// CLOSE STATUS
-// ==============================
-
-if (closeStatusBtn && statusModal) {
-    closeStatusBtn.addEventListener(
-        "click",
-        function () {
-
-            statusModal.style.display = "none";
-
-        }
-    );
-}
-
-// ==============================
-// CHECK STATUS
-// ==============================
-
-if (checkStatusBtn) {
-
-    checkStatusBtn.addEventListener(
-        "click",
-        async function () {
-
-            const mobile =
-                statusMobile.value.trim();
-
-            if (!/^[0-9]{10}$/.test(mobile)) {
-
-                statusResult.innerHTML = `
-                    <p class="status-error">
-                        Please enter a valid
-                        10-digit mobile number.
-                    </p>
-                `;
-
+            if (!file.type.startsWith("image/")) {
+                alert("Please select an image file.");
+                customerPhotoInput.value = "";
                 return;
             }
 
-            statusResult.innerHTML = `
-                <p>
-                    Checking application...
-                </p>
-            `;
-
-            try {
-
-                const response =
-                    await fetch(
-                        "/check-application?mobile=" +
-                        encodeURIComponent(mobile)
-                    );
-
-                const result =
-                    await response.json();
-
-                if (
-                    result.success &&
-                    result.application
-                ) {
-
-                    const app =
-                        result.application;
-
-                    let applicationDate =
-                        "Not available";
-
-                    if (app.submittedAt) {
-
-                        applicationDate =
-                            new Date(
-                                app.submittedAt
-                            ).toLocaleString(
-                                "en-IN"
-                            );
-
-                    }
-
-                    const currentStatus =
-                        app.status || "Pending";
-
-                    let statusClass =
-                        "status-pending";
-
-                    if (
-                        currentStatus === "Approved"
-                    ) {
-
-                        statusClass =
-                            "status-approved";
-
-                    }
-
-                    if (
-                        currentStatus === "Rejected"
-                    ) {
-
-                        statusClass =
-                            "status-rejected";
-
-                    }
-
-                    // ==============================
-                    // CUSTOMER PHOTO
-                    // ==============================
-
-                    let customerPhotoHTML = "";
-
-                    if (
-                        app.customerPhoto &&
-                        String(
-                            app.customerPhoto
-                        ).trim() !== ""
-                    ) {
-
-                        customerPhotoHTML = `
-                            <div style="
-                                text-align:center;
-                                margin-bottom:20px;
-                            ">
-
-                                <img
-                                    src="${app.customerPhoto}"
-                                    alt="Customer Photo"
-                                    style="
-                                        width:120px;
-                                        height:120px;
-                                        object-fit:cover;
-                                        border-radius:50%;
-                                        border:4px solid #1765c0;
-                                    "
-                                >
-
-                                <p>
-                                    <b>
-                                        Customer Photo
-                                    </b>
-                                </p>
-
-                            </div>
-                        `;
-
-                    }
-
-                    // ==============================
-                    // CHARGES
-                    // ==============================
-
-                    const charges = [
-
-                        {
-                            name: "Processing Fee",
-                            value: app.processingFee
-                        },
-
-                        {
-                            name: "TDS",
-                            value: app.tds
-                        },
-
-                        {
-                            name: "GST",
-                            value: app.gst
-                        },
-
-                        {
-                            name: "RBI Charge",
-                            value: app.rbiCharge
-                        },
-
-                        {
-                            name: "NOC Charge",
-                            value: app.nocCharge
-                        },
-
-                        {
-                            name: "Verification Charge",
-                            value: app.verificationCharge
-                        },
-
-                        {
-                            name: "Documentation Charge",
-                            value: app.documentationCharge
-                        },
-
-                        {
-                            name: "Insurance Charge",
-                            value: app.insuranceCharge
-                        },
-
-                        {
-                            name: "Account Hold Charge",
-                            value: app.accountHoldCharge
-                        },
-
-                        {
-                            name: "Other Charge",
-                            value: app.otherCharge
-                        }
-
-                    ];
-
-                    const activeCharges =
-                        charges.filter(
-                            function (charge) {
-
-                                return (
-                                    charge.value !== undefined &&
-                                    charge.value !== null &&
-                                    String(
-                                        charge.value
-                                    ).trim() !== "" &&
-                                    Number(
-                                        charge.value
-                                    ) > 0
-                                );
-
-                            }
-                        );
-
-                    let chargesHTML = "";
-
-                    if (
-                        activeCharges.length > 0
-                    ) {
-
-                        chargesHTML = `
-                            <div
-                                class="demo-charges"
-                                style="margin-top:20px;"
-                            >
-
-                                <button
-                                    type="button"
-                                    id="viewChargesBtn"
-                                    class="save-btn"
-                                >
-                                    View Charges
-                                </button>
-
-                                <div
-                                    id="chargesList"
-                                    style="display:none;"
-                                >
-
-                                    <h3>
-                                        Loan Charge Details
-                                    </h3>
-
-                                    ${activeCharges.map(
-                                        function (charge) {
-
-                                            return `
-                                                <p>
-                                                    <b>
-                                                        ${charge.name}:
-                                                    </b>
-
-                                                    ₹${charge.value}
-                                                </p>
-                                            `;
-
-                                        }
-                                    ).join("")}
-
-                                </div>
-
-                            </div>
-                        `;
-
-                    }
-
-                    // ==============================
-                    // DEMO ACCOUNT DETAILS
-                    // ==============================
-
-                    let accountHTML = "";
-
-                    try {
-
-                        const accountResponse =
-                            await fetch(
-                                "/account-details"
-                            );
-
-                        const accountResult =
-                            await accountResponse.json();
-
-                        if (
-                            accountResult.success &&
-                            accountResult.accountDetails
-                        ) {
-
-                            const account =
-                                accountResult.accountDetails;
-
-                            if (
-                                account.accountHolderName ||
-                                account.bankName ||
-                                account.accountNumber ||
-                                account.ifscCode ||
-                                account.upiId
-                            ) {
-
-                                accountHTML = `
-                                    <div
-                                        class="demo-account"
-                                        style="margin-top:20px;"
-                                    >
-
-                                        <h3>
-                                            Demo Account Details
-                                        </h3>
-
-                                        ${
-                                            account.accountHolderName
-                                                ? `
-                                                    <p>
-                                                        <b>
-                                                            Account Holder:
-                                                        </b>
-                                                        ${account.accountHolderName}
-                                                    </p>
-                                                  `
-                                                : ""
-                                        }
-
-                                        ${
-                                            account.bankName
-                                                ? `
-                                                    <p>
-                                                        <b>
-                                                            Bank:
-                                                        </b>
-                                                        ${account.bankName}
-                                                    </p>
-                                                  `
-                                                : ""
-                                        }
-
-                                        ${
-                                            account.accountNumber
-                                                ? `
-                                                    <p>
-                                                        <b>
-                                                            Account Number:
-                                                        </b>
-                                                        ${account.accountNumber}
-                                                    </p>
-                                                  `
-                                                : ""
-                                        }
-
-                                        ${
-                                            account.ifscCode
-                                                ? `
-                                                    <p>
-                                                        <b>
-                                                            IFSC:
-                                                        </b>
-                                                        ${account.ifscCode}
-                                                    </p>
-                                                  `
-                                                : ""
-                                        }
-
-                                        ${
-                                            account.upiId
-                                                ? `
-                                                    <p>
-                                                        <b>
-                                                            UPI ID:
-                                                        </b>
-                                                        ${account.upiId}
-                                                    </p>
-                                                  `
-                                                : ""
-                                        }
-
-                                        <p style="
-                                            color:#b00020;
-                                            font-weight:bold;
-                                        ">
-                                            Demo/Test information only.
-                                            No real payment is required.
-                                        </p>
-
-                                    </div>
-                                `;
-
-                            }
-
-                        }
-
-                    } catch (accountError) {
-
-                        console.log(
-                            "Account details error:",
-                            accountError
-                        );
-
-                    }
-
-                    // ==============================
-                    // STATUS RESULT
-                    // ==============================
-
-                    statusResult.innerHTML = `
-
-                        ${customerPhotoHTML}
-
-                        <div class="status-card">
-
-                            <h3>
-                                Application Status
-                            </h3>
-
-                            <p>
-                                <b>Name:</b>
-                                ${app.name || ""}
-                            </p>
-
-                            <p>
-                                <b>Mobile:</b>
-                                ${app.mobile || ""}
-                            </p>
-
-                            <p>
-                                <b>Loan Type:</b>
-                                ${app.loanType || ""}
-                            </p>
-
-                            <p>
-                                <b>Loan Amount:</b>
-                                ₹${app.loanAmount || ""}
-                            </p>
-
-                            <p>
-                                <b>Submitted:</b>
-                                ${applicationDate}
-                            </p>
-
-                            <p>
-                                <b>Status:</b>
-                                <span class="${statusClass}">
-                                    ${currentStatus}
-                                </span>
-                            </p>
-
-                            ${chargesHTML}
-
-                            ${accountHTML}
-
-                        </div>
-
-                    `;
-
-                    // ==============================
-                    // VIEW CHARGES BUTTON
-                    // ==============================
-
-                    const viewChargesBtn =
-                        document.getElementById(
-                            "viewChargesBtn"
-                        );
-
-                    const chargesList =
-                        document.getElementById(
-                            "chargesList"
-                        );
-
-                    if (
-                        viewChargesBtn &&
-                        chargesList
-                    ) {
-
-                        viewChargesBtn.addEventListener(
-                            "click",
-                            function () {
-
-                                if (
-                                    chargesList.style.display ===
-                                    "none"
-                                ) {
-
-                                    chargesList.style.display =
-                                        "block";
-
-                                    viewChargesBtn.innerText =
-                                        "Hide Charges";
-
-                                } else {
-
-                                    chargesList.style.display =
-                                        "none";
-
-                                    viewChargesBtn.innerText =
-                                        "View Charges";
-
-                                }
-
-                            }
-                        );
-
-                    }
-
-                } else {
-
-                    statusResult.innerHTML = `
-                        <p class="status-error">
-                            No application found
-                            for this mobile number.
-                        </p>
-                    `;
-
-                }
-
-            } catch (error) {
-
-                console.log(error);
-
-                statusResult.innerHTML = `
-                    <p class="status-error">
-                        Server se connection
-                        nahi ho raha hai.
-                    </p>
-                `;
-
+            // Avoid very large photo uploads.
+            if (file.size > 2 * 1024 * 1024) {
+                alert("Please select an image smaller than 2 MB.");
+                customerPhotoInput.value = "";
+                return;
             }
 
-        }
-    );
+            const reader = new FileReader();
 
-}
+            reader.onload = function (event) {
+                customerPhotoData = String(event.target.result || "");
+            };
+
+            reader.onerror = function () {
+                alert("Photo read nahi ho payi.");
+                customerPhotoData = "";
+            };
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ----------------------------------------------
+    // STEP 1 -> STEP 2
+    // ----------------------------------------------
+
+    if (loanForm) {
+        loanForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            activateStep(formStep1, formStep2, step1, step2);
+        });
+    }
+
+    // ----------------------------------------------
+    // STEP 2 -> STEP 3
+    // ----------------------------------------------
+
+    if (loanForm2) {
+        loanForm2.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            activateStep(formStep2, formStep3, step2, step3);
+        });
+    }
+
+    // ----------------------------------------------
+    // STEP 3 -> STEP 4: REVIEW
+    // ----------------------------------------------
+
+    if (loanForm3) {
+        loanForm3.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            if (!reviewDetails || !formStep3 || !formStep4) {
+                alert("Form ke required HTML elements nahi mile.");
+                return;
+            }
+
+            if (customerPhotoInput?.required && !customerPhotoData) {
+                alert("Please customer photo select karein.");
+                return;
+            }
+
+            const application = {
+                name: getValue("name"),
+                dob: getValue("dob"),
+                mobile: getValue("mobile"),
+                email: getValue("email"),
+                address: getValue("address"),
+                loanType: getValue("loanType"),
+                loanAmount: getValue("loanAmount"),
+                occupation: getValue("occupation"),
+                income: getValue("income"),
+                employment: getValue("employment"),
+                city: getValue("city"),
+                state: getValue("state")
+            };
+
+            reviewDetails.replaceChildren();
+
+            if (customerPhotoData) {
+                const photoBox = document.createElement("div");
+                photoBox.style.textAlign = "center";
+                photoBox.style.marginBottom = "20px";
+
+                const image = document.createElement("img");
+                image.src = customerPhotoData;
+                image.alt = "Customer Photo";
+                image.style.width = "110px";
+                image.style.height = "110px";
+                image.style.objectFit = "cover";
+                image.style.borderRadius = "50%";
+
+                photoBox.appendChild(image);
+                reviewDetails.appendChild(photoBox);
+            }
+
+            const labels = {
+                name: "Name",
+                dob: "Date of Birth",
+                mobile: "Mobile",
+                email: "Email",
+                address: "Address",
+                loanType: "Loan Type",
+                loanAmount: "Loan Amount",
+                occupation: "Occupation",
+                income: "Monthly Income",
+                employment: "Employment",
+                city: "City",
+                state: "State"
+            };
+
+            Object.keys(labels).forEach(function (key) {
+                const value = application[key];
+
+                if (value !== "") {
+                    addDetail(
+                        reviewDetails,
+                        labels[key],
+                        key === "loanAmount" || key === "income"
+                            ? ₹${value}
+                            : value
+                    );
+                }
+            });
+
+            activateStep(formStep3, formStep4, step3, step4);
+        });
+    }
+
+    // ----------------------------------------------
+    // SUBMIT APPLICATION
+    // ----------------------------------------------
+
+    if (submitApplication) {
+        submitApplication.addEventListener("click", async function () {
+            const mobile = getValue("mobile");
+
+            if (!/^[0-9]{10}$/.test(mobile)) {
+                alert("Please enter a valid 10-digit mobile number.");
+                return;
+            }
+
+            const application = {
+                name: getValue("name"),
+                dob: getValue("dob"),
+                mobile: mobile,
+                email: getValue("email"),
+                address: getValue("address"),
+                loanType: getValue("loanType"),
+                loanAmount: getValue("loanAmount"),
+                occupation: getValue("occupation"),
+                income: getValue("income"),
+                employment: getValue("employment"),
+                city: getValue("city"),
+                state: getValue("state"),
+                customerPhoto: customerPhotoData || "",
+                status: "Pending",
+                submittedAt: new Date().toISOString()
+            };
+
+            const originalText = submitApplication.textContent;
+
+            submitApplication.disabled = true;
+            submitApplication.textContent = "Submitting...";
+
+            try {
+                const result = await apiFetch("/submit-application", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(application)
+                });
+
+                if (!result.success) {
+                    throw new Error(
+                        result.message || "Application save nahi hui."
+                    );
+                }
+
+                alert("Application submitted successfully!");
+
+                if (loanModal) {
+                    loanModal.style.display = "none";
+                }
+
+                window.location.reload();
+            } catch (error) {
+                console.error("Application submission error:", error);
+
+                alert(
+                    error.message ||
+                    "Server se connection nahi ho raha hai."
+                );
+
+                submitApplication.disabled = false;
+                submitApplication.textContent =
+                    originalText || "Submit Application";
+            }
+        });
+    }
+});
 
 // ==================================================
-// WEBSITE CONTACT DETAILS
+// PART 2: CHECK APPLICATION STATUS
+// ==================================================
+
+document.addEventListener("DOMContentLoaded", function () {
+    const statusBtn = document.getElementById("statusBtn");
+    const statusModal = document.getElementById("statusModal");
+    const closeStatusBtn = document.getElementById("closeStatusBtn");
+    const checkStatusBtn = document.getElementById("checkStatusBtn");
+    const statusMobile = document.getElementById("statusMobile");
+    const statusResult = document.getElementById("statusResult");
+
+    if (statusBtn && statusModal) {
+        statusBtn.addEventListener("click", function () {
+            statusModal.style.display = "flex";
+
+            if (statusMobile) statusMobile.value = "";
+            if (statusResult) statusResult.replaceChildren();
+        });
+    }
+
+    if (closeStatusBtn && statusModal) {
+        closeStatusBtn.addEventListener("click", function () {
+            statusModal.style.display = "none";
+        });
+    }
+
+    if (!checkStatusBtn) return;
+
+    checkStatusBtn.addEventListener("click", async function () {
+        if (!statusMobile || !statusResult) return;
+
+        const mobile = statusMobile.value.trim();
+
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            showMessage(
+                statusResult,
+                "Please enter a valid 10-digit mobile number.",
+                "status-error"
+            );
+            return;
+        }
+
+        checkStatusBtn.disabled = true;
+        showMessage(statusResult, "Checking application...");
+
+        try {
+            const result = await apiFetch(
+                /check-application?mobile=${encodeURIComponent(mobile)}
+            );
+
+            if (!result.success || !result.application) {
+                showMessage(
+                    statusResult,
+                    "No application found for this mobile number.",
+                    "status-error"
+                );
+                return;
+            }
+
+            const app = result.application;
+            const card = document.createElement("div");
+            card.className = "status-card";
+
+            const heading = document.createElement("h3");
+            heading.textContent = "Application Status";
+            card.appendChild(heading);
+
+            // Display only necessary application details.
+            addDetail(card, "Name", app.name);
+            addDetail(card, "Mobile", app.mobile);
+            addDetail(card, "Loan Type", app.loanType);
+
+            if (app.loanAmount !== undefined && app.loanAmount !== "") {
+                addDetail(card, "Loan Amount", ₹${app.loanAmount});
+            }
+
+            addDetail(card, "Occupation", app.occupation);
+            addDetail(card, "Employment", app.employment);
+            addDetail(card, "City", app.city);
+            addDetail(card, "State", app.state);
+            addDetail(card, "Submitted", displayDate(app.submittedAt));
+
+            const currentStatus = String(app.status || "Pending");
+            const statusP = document.createElement("p");
+            const statusLabel = document.createElement("b");
+            statusLabel.textContent = "Status: ";
+
+            const statusSpan = document.createElement("span");
+            statusSpan.textContent = currentStatus;
+
+            if (currentStatus.toLowerCase() === "approved") {
+                statusSpan.className = "status-approved";
+            } else if (currentStatus.toLowerCase() === "rejected") {
+                statusSpan.className = "status-rejected";
+            } else {
+                statusSpan.className = "status-pending";
+            }
+
+            statusP.appendChild(statusLabel);
+            statusP.appendChild(statusSpan);
+            card.appendChild(statusP);
+
+            statusResult.replaceChildren(card);
+        } catch (error) {
+            console.error("Status check error:", error);
+
+            showMessage(
+                statusResult,
+                error.message || "Server se connection nahi ho raha hai.",
+                "status-error"
+            );
+        } finally {
+            checkStatusBtn.disabled = false;
+        }
+    });
+});
+
+// ==================================================
+// PART 3: PUBLIC CONTACT DETAILS
 // ==================================================
 
 async function loadWebsiteContactDetails() {
+    const whatsapp = document.getElementById("websiteWhatsapp");
+    const helpline = document.getElementById("websiteHelpline");
+    const email = document.getElementById("websiteEmail");
+
+    if (!whatsapp && !helpline && !email) return;
 
     try {
+        const result = await apiFetch("/account-details");
 
-        const response =
-            await fetch("/account-details");
+        if (!result.success || !result.accountDetails) return;
 
-        const result =
-            await response.json();
+        const account = result.accountDetails;
 
-        if (
-            result.success &&
-            result.accountDetails
-        ) {
-
-            const account =
-                result.accountDetails;
-
-            const whatsapp =
-                document.getElementById(
-                    "websiteWhatsapp"
-                );
-
-            const helpline =
-                document.getElementById(
-                    "websiteHelpline"
-                );
-
-            const email =
-                document.getElementById(
-                    "websiteEmail"
-                );
-
-            if (whatsapp) {
-
-                whatsapp.innerText =
-                    account.whatsappNumber ||
-                    "Not available";
-
-            }
-
-            if (helpline) {
-
-                helpline.innerText =
-                    account.helplineNumber ||
-                    "Not available";
-
-            }
-
-            if (email) {
-
-                email.innerText =
-                    account.contactEmail ||
-                    "Not available";
-
-            }
-
+        if (whatsapp) {
+            whatsapp.textContent =
+                account.whatsappNumber || "Not available";
         }
 
+        if (helpline) {
+            helpline.textContent =
+                account.helplineNumber || "Not available";
+        }
+
+        if (email) {
+            email.textContent =
+                account.contactEmail || "Not available";
+        }
     } catch (error) {
-
-        console.log(
-            "Contact details error:",
-            error
-        );
-
+        console.error("Contact details error:", error);
     }
-
 }
 
-loadWebsiteContactDetails();
-
-// ==================================================
-// ================= PART 2 END ======================
-// ==================================================
+if (document.readyState === "loading") {
+    document.addEventListener(
+        "DOMContentLoaded",
+        loadWebsiteContactDetails
+    );
+} else {
+    loadWebsiteContactDetails();
+}
