@@ -1,14 +1,19 @@
+// ==================================================
+// RELIANCE FINANCE - COMPLETE SCRIPT.JS
+// ==================================================
+
 "use strict";
 
-// ==================================================
-// API CONFIGURATION
-// ==================================================
-
+// API URL
 const API_BASE = "https://reliance-finance.onrender.com";
 
 function apiUrl(path) {
     return ${API_BASE}${path};
 }
+
+// ==================================================
+// API REQUEST HELPER
+// ==================================================
 
 async function apiFetch(path, options = {}) {
     const response = await fetch(apiUrl(path), options);
@@ -39,20 +44,6 @@ function getValue(id) {
     return element ? element.value.trim() : "";
 }
 
-function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, function (char) {
-        const map = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;"
-        };
-
-        return map[char];
-    });
-}
-
 function showMessage(element, message, className = "") {
     if (!element) return;
 
@@ -78,7 +69,11 @@ function displayDate(value) {
 }
 
 function addDetail(container, label, value) {
-    if (value === undefined || value === null || value === "") {
+    if (
+        value === undefined ||
+        value === null ||
+        String(value).trim() === ""
+    ) {
         return;
     }
 
@@ -93,29 +88,13 @@ function addDetail(container, label, value) {
 }
 
 // ==================================================
-// PART 1: APPLY NOW AND APPLICATION FORM
+// PART 1: APPLICATION FORM
 // ==================================================
 
 document.addEventListener("DOMContentLoaded", function () {
     const applyBtn = document.getElementById("applyBtn");
     const loanModal = document.getElementById("loanModal");
     const closeBtn = document.getElementById("closeBtn");
-
-    if (applyBtn && loanModal) {
-        applyBtn.addEventListener("click", function () {
-            loanModal.style.display = "flex";
-        });
-    }
-
-    if (closeBtn && loanModal) {
-        closeBtn.addEventListener("click", function () {
-            loanModal.style.display = "none";
-        });
-    }
-
-    // ----------------------------------------------
-    // FORM STEPS
-    // ----------------------------------------------
 
     const formStep1 = document.getElementById("formStep1");
     const formStep2 = document.getElementById("formStep2");
@@ -134,6 +113,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const reviewDetails = document.getElementById("reviewDetails");
     const submitApplication = document.getElementById("submitApplication");
 
+    // Open and close application modal
+    if (applyBtn && loanModal) {
+        applyBtn.addEventListener("click", function () {
+            loanModal.style.display = "flex";
+        });
+    }
+
+    if (closeBtn && loanModal) {
+        closeBtn.addEventListener("click", function () {
+            loanModal.style.display = "none";
+        });
+    }
+
+    // Step navigation
     function activateStep(currentForm, nextForm, currentStep, nextStep) {
         if (currentForm) currentForm.style.display = "none";
         if (nextForm) nextForm.style.display = "block";
@@ -142,16 +135,14 @@ document.addEventListener("DOMContentLoaded", function () {
         if (nextStep) nextStep.classList.add("active-step");
     }
 
-    // ----------------------------------------------
-    // CUSTOMER PHOTO
-    // ----------------------------------------------
-
+    // Customer photo
     let customerPhotoData = "";
     const customerPhotoInput = document.getElementById("customerPhoto");
 
     if (customerPhotoInput) {
         customerPhotoInput.addEventListener("change", function () {
-            const file = customerPhotoInput.files?.[0];
+            const file = customerPhotoInput.files &&
+                customerPhotoInput.files[0];
 
             customerPhotoData = "";
 
@@ -163,7 +154,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            // Avoid very large photo uploads.
             if (file.size > 2 * 1024 * 1024) {
                 alert("Please select an image smaller than 2 MB.");
                 customerPhotoInput.value = "";
@@ -185,34 +175,23 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ----------------------------------------------
-    // STEP 1 -> STEP 2
-    // ----------------------------------------------
-
+    // Step 1 -> Step 2
     if (loanForm) {
         loanForm.addEventListener("submit", function (event) {
             event.preventDefault();
-
             activateStep(formStep1, formStep2, step1, step2);
         });
     }
 
-    // ----------------------------------------------
-    // STEP 2 -> STEP 3
-    // ----------------------------------------------
-
+    // Step 2 -> Step 3
     if (loanForm2) {
         loanForm2.addEventListener("submit", function (event) {
             event.preventDefault();
-
             activateStep(formStep2, formStep3, step2, step3);
         });
     }
 
-    // ----------------------------------------------
-    // STEP 3 -> STEP 4: REVIEW
-    // ----------------------------------------------
-
+    // Step 3 -> Review
     if (loanForm3) {
         loanForm3.addEventListener("submit", function (event) {
             event.preventDefault();
@@ -222,7 +201,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            if (customerPhotoInput?.required && !customerPhotoData) {
+            if (
+                customerPhotoInput &&
+                customerPhotoInput.required &&
+                !customerPhotoData
+            ) {
                 alert("Please customer photo select karein.");
                 return;
             }
@@ -277,16 +260,14 @@ document.addEventListener("DOMContentLoaded", function () {
             };
 
             Object.keys(labels).forEach(function (key) {
-                const value = application[key];
+                let value = application[key];
 
                 if (value !== "") {
-                    addDetail(
-                        reviewDetails,
-                        labels[key],
-                        key === "loanAmount" || key === "income"
-                            ? ₹${value}
-                            : value
-                    );
+                    if (key === "loanAmount" || key === "income") {
+                        value = ₹${value};
+                    }
+
+                    addDetail(reviewDetails, labels[key], value);
                 }
             });
 
@@ -294,10 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ----------------------------------------------
-    // SUBMIT APPLICATION
-    // ----------------------------------------------
-
+    // Submit application
     if (submitApplication) {
         submitApplication.addEventListener("click", async function () {
             const mobile = getValue("mobile");
@@ -436,7 +414,6 @@ document.addEventListener("DOMContentLoaded", function () {
             heading.textContent = "Application Status";
             card.appendChild(heading);
 
-            // Display only necessary application details.
             addDetail(card, "Name", app.name);
             addDetail(card, "Mobile", app.mobile);
             addDetail(card, "Loan Type", app.loanType);
@@ -451,17 +428,17 @@ document.addEventListener("DOMContentLoaded", function () {
             addDetail(card, "State", app.state);
             addDetail(card, "Submitted", displayDate(app.submittedAt));
 
-            const currentStatus = String(app.status || "Pending");
+            const status = String(app.status || "Pending");
             const statusP = document.createElement("p");
             const statusLabel = document.createElement("b");
-            statusLabel.textContent = "Status: ";
-
             const statusSpan = document.createElement("span");
-            statusSpan.textContent = currentStatus;
 
-            if (currentStatus.toLowerCase() === "approved") {
+            statusLabel.textContent = "Status: ";
+            statusSpan.textContent = status;
+
+            if (status.toLowerCase() === "approved") {
                 statusSpan.className = "status-approved";
-            } else if (currentStatus.toLowerCase() === "rejected") {
+            } else if (status.toLowerCase() === "rejected") {
                 statusSpan.className = "status-rejected";
             } else {
                 statusSpan.className = "status-pending";
@@ -477,7 +454,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             showMessage(
                 statusResult,
-                error.message || "Server se connection nahi ho raha hai.",
+                error.message ||
+                    "Server se connection nahi ho raha hai.",
                 "status-error"
             );
         } finally {
