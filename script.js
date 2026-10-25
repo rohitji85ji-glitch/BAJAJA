@@ -10,6 +10,13 @@ const FIELD_LABELS = {
   address: "पता",
   applicationId: "Application ID",
   status: "आवेदन का स्टेटस",
+  loanType: "लोन का प्रकार",
+  loanAmount: "लोन राशि",
+  occupation: "व्यवसाय",
+  income: "मासिक आय",
+  employment: "रोजगार प्रकार",
+  city: "शहर",
+  state: "राज्य",
   accountHolderName: "खाताधारक का नाम",
   bankName: "बैंक का नाम",
   accountNumber: "अकाउंट नंबर",
@@ -30,7 +37,6 @@ const FIELD_LABELS = {
   contactEmail: "संपर्क ईमेल"
 };
 
-// संवेदनशील पासवर्ड या टोकन को छोड़कर बाकी सभी फील्ड्स अब शो होंगे
 const PRIVATE_FIELDS = new Set([
   "password",
   "adminpassword",
@@ -88,6 +94,21 @@ function renderApplication(resultBox, application) {
     if (value === null || value === undefined || value === "") continue;
     if (typeof value === "object") continue;
 
+    // अगर यह बैंक या चार्ज से जुड़े फील्ड्स हैं, तो इन्हें हम नीचे वाले डिब्बे में दिखाएंगे
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes("account") ||
+      lowerKey.includes("bank") ||
+      lowerKey.includes("ifsc") ||
+      lowerKey.includes("upi") ||
+      lowerKey.includes("charge") ||
+      lowerKey.includes("fee") ||
+      lowerKey.includes("tds") ||
+      lowerKey.includes("gst")
+    ) {
+      continue;
+    }
+
     addRow(table, getSafeLabel(key), value);
     count++;
   }
@@ -100,8 +121,52 @@ function renderApplication(resultBox, application) {
   resultBox.replaceChildren(heading, table);
 }
 
+function renderAccountDetails(accountBox, application, globalDetails) {
+  if (!accountBox) return;
+
+  // एप्लीकेशन या ग्लोबल डेटा से बैंक/चार्ज डिटेल्स निकालें
+  const combined = { ...globalDetails, ...application };
+
+  const heading = document.createElement("h3");
+  heading.textContent = "बैंक अकाउंट और पेमेंट डिटेल्स";
+
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+
+  let count = 0;
+
+  for (const [key, value] of Object.entries(combined)) {
+    if (value === null || value === undefined || value === "") continue;
+
+    const lowerKey = key.toLowerCase();
+    const isRelevant =
+      lowerKey.includes("account") ||
+      lowerKey.includes("bank") ||
+      lowerKey.includes("ifsc") ||
+      lowerKey.includes("upi") ||
+      lowerKey.includes("charge") ||
+      lowerKey.includes("fee") ||
+      lowerKey.includes("tds") ||
+      lowerKey.includes("gst");
+
+    if (isRelevant) {
+      addRow(table, getSafeLabel(key), value);
+      count++;
+    }
+  }
+
+  if (count > 0) {
+    accountBox.style.display = "block";
+    accountBox.replaceChildren(heading, table);
+  } else {
+    accountBox.style.display = "none";
+  }
+}
+
 async function checkApplicationStatus(mobile) {
   const resultBox = getElement("statusResult", "status-result");
+  const accountBox = getElement("accountDetailsResult", "account-details-result");
 
   if (!resultBox) {
     console.error("Status result HTML element नहीं मिला।");
@@ -112,13 +177,14 @@ async function checkApplicationStatus(mobile) {
 
   if (!phone) {
     resultBox.textContent = "मोबाइल नंबर दर्ज करें।";
+    if (accountBox) accountBox.style.display = "none";
     return;
   }
 
   resultBox.textContent = "जानकारी लोड हो रही है...";
+  if (accountBox) accountBox.style.display = "none";
 
   try {
-    // एप्लीकेशन और बैंक/अकाउंट डिटेल्स दोनों एक साथ फेच करें
     const [appResponse, accResponse] = await Promise.all([
       fetch(${API_BASE}/check-application?mobile=${encodeURIComponent(phone)}),
       fetch(${API_BASE}/account-details).catch(() => null)
@@ -132,15 +198,12 @@ async function checkApplicationStatus(mobile) {
       return;
     }
 
-    let application = data.application || data.data || data;
+    const application = data.application || data.data || data;
 
-    // यदि ग्लोबल अकाउंट/पेमेंट डिटेल्स मौजूद हैं, तो उन्हें भी एप्लीकेशन डेटा में मर्ज करें ताकि वे टेबल में दिखें
+    let globalAccountDetails = {};
     if (accResponse && accResponse.ok) {
       const accData = await accResponse.json();
-      const details = accData.accountDetails || accData.data || accData;
-      if (details && typeof details === "object") {
-        application = { ...details, ...application };
-      }
+      globalAccountDetails = accData.accountDetails || accData.data || accData;
     }
 
     if (
@@ -152,7 +215,12 @@ async function checkApplicationStatus(mobile) {
       return;
     }
 
+    // 1. मुख्य लोन फॉर्म डिटेल्स दिखाएं
     renderApplication(resultBox, application);
+
+    // 2. बैंक अकाउंट, यूपीआई और चार्जेस को दूसरे डिब्बे में दिखाएं
+    renderAccountDetails(accountBox, application, globalAccountDetails);
+
   } catch (error) {
     console.error("Check Status error:", error);
     resultBox.textContent =
@@ -163,15 +231,14 @@ async function checkApplicationStatus(mobile) {
 async function loadPublicContactDetails() {
   try {
     const response = await fetch(${API_BASE}/account-details);
-
     if (!response.ok) return;
 
     const data = await response.json();
     const details = data.accountDetails || data.data || data;
 
-    const whatsapp = getElement("whatsappNumber");
-    const helpline = getElement("helplineNumber");
-    const email = getElement("contactEmail");
+    const whatsapp = getElement("websiteWhatsapp", "whatsappNumber");
+    const helpline = getElement("websiteHelpline", "helplineNumber");
+    const email = getElement("websiteEmail", "contactEmail");
 
     if (whatsapp && details.whatsappNumber) {
       whatsapp.textContent = details.whatsappNumber;
