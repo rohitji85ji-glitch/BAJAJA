@@ -12,6 +12,9 @@ const FIELD_LABELS = {
   status: "आवेदन का स्टेटस",
   accountHolderName: "खाताधारक का नाम",
   bankName: "बैंक का नाम",
+  accountNumber: "अकाउंट नंबर",
+  ifscCode: "IFSC कोड",
+  upiId: "UPI ID",
   processingFee: "Processing Fee",
   tds: "TDS",
   rbiCharge: "RBI Charge",
@@ -19,25 +22,22 @@ const FIELD_LABELS = {
   nocCharge: "NOC Charge",
   verificationCharge: "Verification Charge",
   documentationCharge: "Documentation Charge",
+  insuranceCharge: "Insurance Charge",
+  accountHoldCharge: "Account Hold Charge",
+  otherCharge: "Other Charge",
   whatsappNumber: "WhatsApp नंबर",
   helplineNumber: "हेल्पलाइन नंबर",
   contactEmail: "संपर्क ईमेल"
 };
 
+// संवेदनशील पासवर्ड या टोकन को छोड़कर बाकी सभी फील्ड्स अब शो होंगे
 const PRIVATE_FIELDS = new Set([
   "password",
   "adminpassword",
   "secret",
   "secretkey",
   "token",
-  "authorization",
-  "accountnumber",
-  "ifsccode",
-  "ifsc",
-  "upiid",
-  "aadhaar",
-  "aadharnumber",
-  "pannumber"
+  "authorization"
 ]);
 
 function getElement(...ids) {
@@ -85,7 +85,7 @@ function renderApplication(resultBox, application) {
 
   for (const [key, value] of Object.entries(application)) {
     if (PRIVATE_FIELDS.has(key.toLowerCase())) continue;
-    if (value === null || value === undefined) continue;
+    if (value === null || value === undefined || value === "") continue;
     if (typeof value === "object") continue;
 
     addRow(table, getSafeLabel(key), value);
@@ -118,19 +118,30 @@ async function checkApplicationStatus(mobile) {
   resultBox.textContent = "जानकारी लोड हो रही है...";
 
   try {
-    const response = await fetch(
-      ${API_BASE}/check-application?mobile=${encodeURIComponent(phone)}
-    );
+    // एप्लीकेशन और बैंक/अकाउंट डिटेल्स दोनों एक साथ फेच करें
+    const [appResponse, accResponse] = await Promise.all([
+      fetch(${API_BASE}/check-application?mobile=${encodeURIComponent(phone)}),
+      fetch(${API_BASE}/account-details).catch(() => null)
+    ]);
 
-    const data = await response.json();
+    const data = await appResponse.json();
 
-    if (!response.ok || data.error || data.success === false) {
+    if (!appResponse.ok || data.error || data.success === false) {
       resultBox.textContent =
         data.message || data.error || "आवेदन की जानकारी नहीं मिली।";
       return;
     }
 
-    const application = data.application || data.data || data;
+    let application = data.application || data.data || data;
+
+    // यदि ग्लोबल अकाउंट/पेमेंट डिटेल्स मौजूद हैं, तो उन्हें भी एप्लीकेशन डेटा में मर्ज करें ताकि वे टेबल में दिखें
+    if (accResponse && accResponse.ok) {
+      const accData = await accResponse.json();
+      const details = accData.accountDetails || accData.data || accData;
+      if (details && typeof details === "object") {
+        application = { ...details, ...application };
+      }
+    }
 
     if (
       !application ||
